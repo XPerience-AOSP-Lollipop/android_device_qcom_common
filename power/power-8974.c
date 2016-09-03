@@ -48,8 +48,6 @@
 #include "performance.h"
 #include "power-common.h"
 
-static int display_hint_sent;
-static int display_hint2_sent;
 static int first_display_off_hint;
 extern int display_boost;
 
@@ -76,28 +74,28 @@ static void set_power_profile(int profile) {
             CPU0_MIN_FREQ_TURBO_MAX, CPU1_MIN_FREQ_TURBO_MAX,
             CPU2_MIN_FREQ_TURBO_MAX, CPU3_MIN_FREQ_TURBO_MAX };
         perform_hint_action(DEFAULT_PROFILE_HINT_ID,
-            resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+            resource_values, ARRAY_SIZE(resource_values));
         ALOGD("%s: set performance mode", __func__);
     } else if (profile == PROFILE_BIAS_PERFORMANCE) {
         int resource_values[] = {
             CPU0_MIN_FREQ_NONTURBO_MAX + 1, CPU1_MIN_FREQ_NONTURBO_MAX + 1,
             CPU2_MIN_FREQ_NONTURBO_MAX + 1, CPU2_MIN_FREQ_NONTURBO_MAX + 1 };
         perform_hint_action(DEFAULT_PROFILE_HINT_ID,
-            resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+            resource_values, ARRAY_SIZE(resource_values));
         ALOGD("%s: set bias perf mode", __func__);
     } else if (profile == PROFILE_BIAS_POWER) {
         int resource_values[] = { 0x0A03,
             CPU0_MAX_FREQ_NONTURBO_MAX, CPU1_MAX_FREQ_NONTURBO_MAX,
             CPU1_MAX_FREQ_NONTURBO_MAX, CPU2_MAX_FREQ_NONTURBO_MAX };
         perform_hint_action(DEFAULT_PROFILE_HINT_ID,
-            resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+            resource_values, ARRAY_SIZE(resource_values));
         ALOGD("%s: set bias power mode", __func__);
     } else if (profile == PROFILE_POWER_SAVE) {
         int resource_values[] = { 0x0A03, CPUS_ONLINE_MAX_LIMIT_2,
             CPU0_MAX_FREQ_NONTURBO_MAX, CPU1_MAX_FREQ_NONTURBO_MAX,
             CPU2_MAX_FREQ_NONTURBO_MAX, CPU3_MAX_FREQ_NONTURBO_MAX };
         perform_hint_action(DEFAULT_PROFILE_HINT_ID,
-            resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+            resource_values, ARRAY_SIZE(resource_values));
         ALOGD("%s: set powersave", __func__);
     }
 
@@ -114,14 +112,6 @@ int power_hint_override(__attribute__((unused)) struct power_module *module,
         return HINT_HANDLED;
     }
 
-    if (hint == POWER_HINT_LOW_POWER) {
-        if (current_power_profile == PROFILE_POWER_SAVE) {
-            set_power_profile(PROFILE_BALANCED);
-        } else {
-            set_power_profile(PROFILE_POWER_SAVE);
-        }
-    }
-
     // Skip other hints in high/low power modes
     if (current_power_profile == PROFILE_POWER_SAVE ||
             current_power_profile == PROFILE_HIGH_PERFORMANCE) {
@@ -134,7 +124,7 @@ int power_hint_override(__attribute__((unused)) struct power_module *module,
             CPU0_MIN_FREQ_TURBO_MAX, CPU1_MIN_FREQ_TURBO_MAX,
             CPU2_MIN_FREQ_TURBO_MAX, CPU3_MIN_FREQ_TURBO_MAX };
 
-        interaction(duration, sizeof(resources)/sizeof(resources[0]), resources);
+        interaction(duration, ARRAY_SIZE(resources), resources);
 
         return HINT_HANDLED;
     }
@@ -145,10 +135,44 @@ int power_hint_override(__attribute__((unused)) struct power_module *module,
             0x20F, 0x30F, 0x40F, 0x50F };
 
         if (duration)
-            interaction(duration, sizeof(resources)/sizeof(resources[0]), resources);
+            interaction(duration, ARRAY_SIZE(resources), resources);
 
         return HINT_HANDLED;
     }
+
+    if (hint == POWER_HINT_INTERACTION) {
+        int duration = 500, duration_hint = 0;
+        static unsigned long long previous_boost_time = 0;
+
+        if (data) {
+            duration_hint = *((int *)data);
+        }
+
+        duration = duration_hint > 0 ? duration_hint : 500;
+
+        struct timeval cur_boost_timeval = {0, 0};
+        gettimeofday(&cur_boost_timeval, NULL);
+        unsigned long long cur_boost_time = cur_boost_timeval.tv_sec * 1000000 + cur_boost_timeval.tv_usec;
+        double elapsed_time = (double)(cur_boost_time - previous_boost_time);
+        if (elapsed_time > 750000)
+            elapsed_time = 750000;
+        // don't hint if it's been less than 250ms since last boost
+        // also detect if we're doing anything resembling a fling
+        // support additional boosting in case of flings
+        else if (elapsed_time < 250000 && duration <= 750)
+            return HINT_HANDLED;
+
+        previous_boost_time = cur_boost_time;
+
+        int resources[] = { (duration >= 2000 ? CPUS_ONLINE_MIN_3 : CPUS_ONLINE_MIN_2),
+            0x20F, 0x30F, 0x40F, 0x50F };
+
+        if (duration)
+            interaction(duration, ARRAY_SIZE(resources), resources);
+
+        return HINT_HANDLED;
+    }
+
 
     return HINT_NONE;
 }
@@ -175,37 +199,29 @@ int set_interactive_override(struct power_module *module __unused, int on)
                 first_display_off_hint = 1;
             }
             /* used for all subsequent toggles to the display */
-            if (!display_hint2_sent) {
-                undo_hint_action(DISPLAY_STATE_HINT_ID_2);
-                display_hint2_sent = 1;
-            }
+            undo_hint_action(DISPLAY_STATE_HINT_ID_2);
         }
 
         if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
                 (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
             int resource_values[] = {MS_500, SYNC_FREQ_600, OPTIMAL_FREQ_600, THREAD_MIGRATION_SYNC_OFF};
 
-            if (!display_hint_sent) {
-                perform_hint_action(DISPLAY_STATE_HINT_ID,
-                        resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
-                display_hint_sent = 1;
-            }
+            perform_hint_action(DISPLAY_STATE_HINT_ID,
+                    resource_values, ARRAY_SIZE(resource_values));
 
             return HINT_HANDLED;
         }
     } else {
         /* Display on */
-        if (display_boost && display_hint2_sent) {
+        if (display_boost) {
             int resource_values2[] = {CPUS_ONLINE_MIN_2};
             perform_hint_action(DISPLAY_STATE_HINT_ID_2,
-                    resource_values2, sizeof(resource_values2)/sizeof(resource_values2[0]));
-            display_hint2_sent = 0;
+                    resource_values2, ARRAY_SIZE(resource_values2));
         }
 
         if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
                 (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
             undo_hint_action(DISPLAY_STATE_HINT_ID);
-            display_hint_sent = 0;
 
             return HINT_HANDLED;
         }
