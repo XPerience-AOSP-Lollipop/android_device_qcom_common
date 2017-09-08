@@ -79,7 +79,7 @@ static int profile_power_save[] = {
 };
 
 static int profile_bias_power[] = {
-    CPUS_ONLINE_MAX_LIMIT_BIG, 3,
+    CPUS_ONLINE_MAX_LIMIT_BIG, 2,
     MAX_FREQ_BIG_CORE_0, 1209,
     MAX_FREQ_LITTLE_CORE_0, 1094,
 };
@@ -90,14 +90,8 @@ static int profile_bias_performance[] = {
     MAX_FREQ_LITTLE_CORE_0, 1209,
 };
 
-static int profile_power_save2[] = {
-    CPUS_ONLINE_MAX_LIMIT_BIG, 2,
-    MAX_FREQ_BIG_CORE_0, 1094,
-    MAX_FREQ_LITTLE_CORE_0, 902,
-};
-
 int get_number_of_profiles() {
-    return 6;
+    return 5;
 }
 
 static void set_power_profile(int profile) {
@@ -128,10 +122,6 @@ static void set_power_profile(int profile) {
         perform_hint_action(DEFAULT_PROFILE_HINT_ID, profile_bias_power,
                 ARRAY_SIZE(profile_bias_power));
         ALOGD("%s: Set bias power mode", __func__);
-    } else if (profile ==  PROFILE_BIAS_PERFORMANCE) {
-        perform_hint_action(DEFAULT_PROFILE_HINT_ID,  profile_bias_performance,
-                ARRAY_SIZE( profile_bias_performance));
-        ALOGD("%s: set bias perf mode", __func__);
     }
 
     current_power_profile = profile;
