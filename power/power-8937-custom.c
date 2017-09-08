@@ -128,10 +128,10 @@ static void set_power_profile(int profile) {
         perform_hint_action(DEFAULT_PROFILE_HINT_ID, profile_bias_power,
                 ARRAY_SIZE(profile_bias_power));
         ALOGD("%s: Set bias power mode", __func__);
-    } else if (profile == PROFILE_POWER_SAVE2) {
-        perform_hint_action(DEFAULT_PROFILE_HINT_ID, profile_power_save2,
-                ARRAY_SIZE(profile_power_save2));
-        ALOGD("%s: set powersave2", __func__);
+    } else if (profile ==  PROFILE_BIAS_PERFORMANCE) {
+        perform_hint_action(DEFAULT_PROFILE_HINT_ID,  profile_bias_performance,
+                ARRAY_SIZE( profile_bias_performance));
+        ALOGD("%s: set bias perf mode", __func__);
     }
 
     current_power_profile = profile;
@@ -174,7 +174,6 @@ int power_hint_override(__unused struct power_module *module, power_hint_t hint,
     // Skip other hints in power save mode
     if (//1 == 1 ||    // in any mode
             current_power_profile == PROFILE_POWER_SAVE ||
-            current_power_profile == PROFILE_POWER_SAVE2 ||
             current_power_profile == PROFILE_HIGH_PERFORMANCE) {
         return HINT_HANDLED;
     }
@@ -208,7 +207,7 @@ int power_hint_override(__unused struct power_module *module, power_hint_t hint,
                         resources_interaction_fling_boost);
             }
             return HINT_HANDLED;
-        case POWER_HINT_LAUNCH_BOOST:
+        case POWER_HINT_LAUNCH:
             duration = 2000;
             interaction(duration, ARRAY_SIZE(resources_launch_boost),
                     resources_launch_boost);
