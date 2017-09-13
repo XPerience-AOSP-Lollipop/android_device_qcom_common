@@ -164,6 +164,7 @@ int power_hint_override(__unused struct power_module *module, power_hint_t hint,
     // Skip other hints in power save mode
     if (//1 == 1 ||    // in any mode
             current_power_profile == PROFILE_POWER_SAVE ||
+            current_power_profile == PROFILE_BIAS_POWER ||
             current_power_profile == PROFILE_HIGH_PERFORMANCE) {
         return HINT_HANDLED;
     }
