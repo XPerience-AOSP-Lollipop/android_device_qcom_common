@@ -79,7 +79,7 @@ static int profile_power_save[] = {
 };
 
 static int profile_bias_power[] = {
-    CPUS_ONLINE_MAX_LIMIT_BIG, 3,
+    CPUS_ONLINE_MAX_LIMIT_BIG, 2,
     MAX_FREQ_BIG_CORE_0, 1209,
     MAX_FREQ_LITTLE_CORE_0, 1094,
 };
@@ -174,6 +174,7 @@ int power_hint_override(__unused struct power_module *module, power_hint_t hint,
     // Skip other hints in power save mode
     if (//1 == 1 ||    // in any mode
             current_power_profile == PROFILE_POWER_SAVE ||
+            current_power_profile == PROFILE_BIAS_POWER ||
             current_power_profile == PROFILE_HIGH_PERFORMANCE) {
         return HINT_HANDLED;
     }
